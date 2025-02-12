@@ -1,0 +1,30 @@
+name: Deploy to EC2
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Set Up SSH Key
+        run: |
+          echo "${{ secrets.EC2_KEY }}" > ec2_key.pem
+          chmod 600 ec2_key.pem
+
+      - name: Deploy to EC2
+        run: |
+          ssh -o StrictHostKeyChecking=no -i ec2_key.pem ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+          cd ~/fastapi-book-project || git clone https://github.com/your-username/fastapi-book-project.git ~/fastapi-book-project && cd ~/fastapi-book-project
+          git pull origin main
+          docker stop fastapi-app || true
+          docker rm fastapi-app || true
+          docker build -t fastapi-app .
+          docker run -d --name fastapi-app -p 8000:8000 fastapi-app
+          EOF
